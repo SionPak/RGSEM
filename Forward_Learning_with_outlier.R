@@ -24,7 +24,6 @@ Forward_Learning_fun_out = function(X, max_degree = 1,C = NULL, method = 'Cols1'
                                                                         valid_set = valid_list[[k-1]], method = method))
     
     
-    
     scores = unlist(score_valid_sample_temp[1,])
     
     Ordering_j = sample(which( scores == min(scores) ),1)
