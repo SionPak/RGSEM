@@ -1,77 +1,114 @@
-evaluation_fun = function(true_graph, estimated_graph){
-  #Precision: the fraction of all predicted (directed) edges that are actually present in the true DAG
-  #recall: the fraction of directed edges in the true DAG that the method was able to recover.
-  #true positives: the numbers of correctly identified edges.
-  #true negatives: the numbers of correctly identified absence of edges.
-  #false positives: the numbers of edges were falsely added.
-  #false negatives: the numbers of edges were falsely added falsely missing.
-  true_graph_edge = true_graph+t(true_graph)
-  estimated_graph_edge = estimated_graph+t(estimated_graph)
-  true_graph_total_edges = sum(true_graph)
-  estimated_graph_total_edges = sum(estimated_graph)
-  
-  precisition =  sum( (true_graph + estimated_graph) == 2 )/sum(estimated_graph)
-  recall = sum( (true_graph + estimated_graph) == 2 )/sum(true_graph)
-  precisition_edge =  sum( (true_graph_edge + estimated_graph_edge) == 2 )/sum(estimated_graph_edge)
-  recall_edge = sum( (true_graph_edge + estimated_graph_edge) == 2 )/sum(true_graph_edge)
-  
-  true_positives = sum( (true_graph + estimated_graph) == 2 )
-  true_negatives = sum( (true_graph + estimated_graph) == 0 )
-  false_positives = sum( true_graph < estimated_graph)
-  false_negatives = sum( true_graph > estimated_graph)
-  
-  true_positives_edge = sum( (true_graph_edge + estimated_graph_edge) == 2 )/2
-  true_negatives_edge = sum( (true_graph_edge + estimated_graph_edge) == 0 )/2
-  false_positives_edge = sum( true_graph_edge < estimated_graph_edge)/2
-  false_negatives_edge = sum( true_graph_edge > estimated_graph_edge)/2
-  
-  hamming_dist = sum(true_graph!=estimated_graph)
-  hamming_dist_edge = sum( true_graph_edge != estimated_graph_edge ) /2
-  hamming_dist_ordering = hamming_dist - hamming_dist_edge
-  
-  return( c(precisition = precisition, 
-            recall = recall, 
-            precisition_edge = precisition_edge, 
-            recall_edge = recall_edge,
-            true_positives = true_positives, 
-            true_negatives = true_negatives, 
-            false_positives = false_positives, 
-            false_negatives = false_negatives, 
-            true_positives_edge = true_positives_edge, 
-            true_negatives_edge = true_negatives_edge, 
-            false_positives_edge = false_positives_edge, 
-            false_negatives_edge = false_negatives_edge, 
-            hamming_dist = hamming_dist, 
-            hamming_dist_edge = hamming_dist_edge, 
-            hamming_dist_ordering  = hamming_dist_ordering, 
-            true_graph_total_edges = true_graph_total_edges, 
-            estimated_graph_total_edges = estimated_graph_total_edges) )
-}
+#####GSEM Learning Algorithm via Conditional Independence Test#########
 
-############## Estimated directed graph: estimated_graph_fun ####################
-estimated_graph_fun = function(directed_graph_edges, ordering){
-  for(i in 1:length(ordering)) directed_graph_edges[ordering[1:i],ordering[i]]<-0
-  return( directed_graph_edges )
-}
-
-
-############## DAG2CPDAGAdj ##############
-dag2cpdagAdj <- function(Adj){
-  # if (!requireNamespace("BiocManager", quietly = TRUE))
-  #   install.packages("BiocManager")
-  # 
-  # BiocManager::install("graph")
-  library(graph)
-  #library(pcalg)
+GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", graph = NULL,
+                          max_degree = 1 , C=NULL){
+  set.seed(1)
   library(bnlearn)
+  ###################
+  X = as.matrix( data )
+  p = ncol(X)
+  n = nrow(X)
+  RemNode = 1:p 
+  pi_GSEM = NULL
+  Estimated_G = Estimated_O = matrix(0, p ,p)
+  evaluation_result_GSEM = evaluation_result_GSEM_MEC = evaluation_result_GSEM_Oracle = NULL
+  ####
+  Runtime = proc.time()[3]
   
-  d <- as(Adj, "graphNEL")
-  cpd <- cpdag(as.bn(d) )
-  result<- amat(cpd)
+  #### Step 1): Finding the Ordering ####
   
-  # if pcalg is allowed, the following code works.
-  #cpd <- dag2cpdag(d)
-  #result <- as(cpd, "matrix")
-  return(result)
+  
+  if(method == 'internal' | method == 'external')
+  {
+    if(direction == "forward"){
+      result = Forward_Learning_fun_out(X, max_degree = max_degree,C, method = method)
+      Ordering = result[[1]]
+      valid_obs = result[[2]]
+    }
+    # else if(direction =="backward"){
+    #   result = Backward_Learning_fun_out(X, max_degree = max_degree, C)
+    #   Ordering = result[[1]]
+    #   valid_obs = result[[2]]
+    # } 
+  } else {
+    if(direction == "forward") Ordering = Forward_Learning_fun(X, max_degree = max_degree)
+    # else if(direction =="backward"){
+    #   Ordering = Backward_Learning_fun(X, method, max_degree = max_degree)
+    # } 
+  }
+  #### Step 2): Finding the Parents ####
+  
+  used_ci_test = "zf"
+  #used_ci_test = "smc-zf"
+  #used_ci_test = "mi-g"
+  #used_ci_test = "smc-mi-g"
+  #used_ci_test = "cor"
+  
+  if(method == "internal"| method == "external" ) { ####### Cook's
+    for(m in 2:p){
+      j = Ordering[m]
+      for(k in Ordering[1:(m-1)]){       
+        
+        if(method =='internal') valid_idx = Reduce(intersect,valid_obs[m])
+        if(method =='external') valid_idx = Reduce(intersect,valid_obs[1:m])
+        
+        if(m > 2){
+          S = setdiff( Ordering[ 1:(m-1)], k )
+          parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], X[valid_idx, S], test = used_ci_test)$p.value
+        }else{
+          parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], test = used_ci_test)$p.value
+        }
+        if(parent_pvalue < alpha){
+          Estimated_G[j, k] = 1
+        }
+      }
+    } 
+  } else {######## US
+    
+    for(m in 2:p){
+      j = Ordering[m]
+      for(k in Ordering[1:(m-1)]){
+        if(m > 2){
+          S = setdiff( Ordering[ 1:(m-1)], k )
+          parent_pvalue = ci.test(X[, j], X[, k], X[, S], test = used_ci_test)$p.value
+        }else{
+          parent_pvalue = ci.test(X[, j], X[, k], test = used_ci_test)$p.value
+        }
+        if(parent_pvalue < alpha){
+          Estimated_G[j, k] = 1
+        }
+      }
+    }
+    
+  }
+  
+  ####
+  Runtime = proc.time()[3] - Runtime
+  
+  #print(paste("It takes: ", Runtime))
+  
+  Estimated_G = matrix(Estimated_G, ncol = p)
+  
+  ####
+  est_MEC = dag2cpdagAdj(Estimated_G)
+  
+  ####
+  if( !is.null(graph) ){
+    B = graph
+    B[B!=0] =1
+    MEC = B + t(B)
+    Oracle_DAG = estimated_graph_fun( MEC, Ordering)
+    evaluation_result_GSEM = evaluation_fun( B, Estimated_G ) 
+    evaluation_result_GSEM_MEC = evaluation_fun( dag2cpdagAdj(B), est_MEC)
+    evaluation_result_GSEM_Oracle = evaluation_fun( B, Oracle_DAG ) 
+  }
+  
+  return(
+    list( DAG_Evaluation = evaluation_result_GSEM, 
+          MEC_Evaluation = evaluation_result_GSEM_MEC,  
+          Oracle_Evaluation = evaluation_result_GSEM_Oracle,
+          DAG = Estimated_G, 
+          Ordering = Ordering, 
+          Time = Runtime)
+  )
 }
-

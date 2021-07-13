@@ -1,3 +1,4 @@
+#####GSEM Learning Algorithm via Conditional Independence Test#########
 
 GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", graph = NULL,
                           max_degree = 1 , C=NULL){
@@ -16,11 +17,25 @@ GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", gr
   
   #### Step 1): Finding the Ordering ####
   
-
-  result = Forward_Learning_fun_out(X, max_degree = max_degree,C, method = method)
-  Ordering = result[[1]]
-  valid_obs = result[[2]]
   
+  if(method == 'internal' | method == 'external')
+  {
+    if(direction == "forward"){
+      result = Forward_Learning_fun_out(X, max_degree = max_degree,C, method = method)
+      Ordering = result[[1]]
+      valid_obs = result[[2]]
+    }
+    # else if(direction =="backward"){
+    #   result = Backward_Learning_fun_out(X, max_degree = max_degree, C)
+    #   Ordering = result[[1]]
+    #   valid_obs = result[[2]]
+    # } 
+  } else {
+    if(direction == "forward") Ordering = Forward_Learning_fun(X, max_degree = max_degree)
+    # else if(direction =="backward"){
+    #   Ordering = Backward_Learning_fun(X, method, max_degree = max_degree)
+    # } 
+  }
   #### Step 2): Finding the Parents ####
   
   used_ci_test = "zf"
@@ -29,27 +44,43 @@ GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", gr
   #used_ci_test = "smc-mi-g"
   #used_ci_test = "cor"
   
-  ####### Cook's
-  for(m in 2:p){
-    j = Ordering[m]
-    for(k in Ordering[1:(m-1)]){
-      if(m > 2){
-        S = setdiff( Ordering[ 1:(m-1)], k )
+  if(method == "internal"| method == "external" ) { ####### Cook's
+    for(m in 2:p){
+      j = Ordering[m]
+      for(k in Ordering[1:(m-1)]){       
         
-        valid_idx = Reduce(intersect,valid_obs[Ordering[1:m]])
+        if(method =='internal') valid_idx = Reduce(intersect,valid_obs[m])
+        if(method =='external') valid_idx = Reduce(intersect,valid_obs[1:m])
         
-        parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], X[valid_idx, S], test = used_ci_test)$p.value
-      }else{
-        
-        valid_idx = Reduce(intersect,valid_obs[Ordering[1:m]])
-        parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], test = used_ci_test)$p.value
+        if(m > 2){
+          S = setdiff( Ordering[ 1:(m-1)], k )
+          parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], X[valid_idx, S], test = used_ci_test)$p.value
+        }else{
+          parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], test = used_ci_test)$p.value
+        }
+        if(parent_pvalue < alpha){
+          Estimated_G[j, k] = 1
+        }
       }
-      if(parent_pvalue < alpha){
-        Estimated_G[j, k] = 1
+    } 
+  } else {######## US
+    
+    for(m in 2:p){
+      j = Ordering[m]
+      for(k in Ordering[1:(m-1)]){
+        if(m > 2){
+          S = setdiff( Ordering[ 1:(m-1)], k )
+          parent_pvalue = ci.test(X[, j], X[, k], X[, S], test = used_ci_test)$p.value
+        }else{
+          parent_pvalue = ci.test(X[, j], X[, k], test = used_ci_test)$p.value
+        }
+        if(parent_pvalue < alpha){
+          Estimated_G[j, k] = 1
+        }
       }
     }
-  } 
-  
+    
+  }
   
   ####
   Runtime = proc.time()[3] - Runtime
@@ -81,4 +112,3 @@ GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", gr
           Time = Runtime)
   )
 }
-
