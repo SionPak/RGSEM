@@ -1,8 +1,5 @@
-Forward_Learning_fun_out = function(X, max_degree = 1,C = NULL, method = 'in') {
-  if(method == 'in.procedure' | method =='post.procedure'){
-    cat('Only \'in.procedure\' and \'post.procedure\' are available as method.')
-    return(NULL)
-  } 
+Forward_Learning_fun_out = function(X, C = NULL, method = 'in.procedure') {
+  
   require(MASS)
   X = as.matrix(X)
   p = ncol(X) ;   n = nrow(X)

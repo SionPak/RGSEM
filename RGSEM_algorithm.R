@@ -1,7 +1,12 @@
-#####GSEM Learning Algorithm via Conditional Independence Test#########
 
-GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", graph = NULL,
-                          max_degree = 1 , C=NULL){
+
+RGSEM_Algorithm = function(data, method, alpha = 0.001, graph = NULL, C=NULL){
+  if(method == 'in.procedure' | method =='post.procedure')
+  {
+    cat('Only \'in.procedure\' and \'post.procedure\' are available as method.')
+    return(NULL)
+  } 
+  
   set.seed(1)
   library(bnlearn)
   ###################
@@ -20,67 +25,37 @@ GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", gr
   
   if(method == 'in.procedure' | method == 'post.procedure')
   {
-    if(direction == "forward"){
-      result = Forward_Learning_fun_out(X, max_degree = max_degree,C, method = method)
-      Ordering = result[[1]]
-      valid_obs = result[[2]]
-    }
-    # else if(direction =="backward"){
-    #   result = Backward_Learning_fun_out(X, max_degree = max_degree, C)
-    #   Ordering = result[[1]]
-    #   valid_obs = result[[2]]
-    # } 
-  } else {
-    if(direction == "forward") Ordering = Forward_Learning_fun(X, max_degree = max_degree)
-    # else if(direction =="backward"){
-    #   Ordering = Backward_Learning_fun(X, method, max_degree = max_degree)
-    # } 
+    
+    result = Forward_Learning_fun_out(X,C, method = method)
+    Ordering = result[[1]]
+    valid_obs = result[[2]]
+    
   }
+  
   #### Step 2): Finding the Parents ####
-  
   used_ci_test = "zf"
-  #used_ci_test = "smc-zf"
-  #used_ci_test = "mi-g"
-  #used_ci_test = "smc-mi-g"
-  #used_ci_test = "cor"
-  
-  if(method == "in.procedure"| method == "post.procedure" ) { ####### Cook's
-    for(m in 2:p){
-      j = Ordering[m]
-      for(k in Ordering[1:(m-1)]){       
-        
-        if(method =='in.procedure') valid_idx = Reduce(intersect,valid_obs[m])
-        if(method =='post.procedure') valid_idx = Reduce(intersect,valid_obs[1:m])
-        
-        if(m > 2){
-          S = setdiff( Ordering[ 1:(m-1)], k )
-          parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], X[valid_idx, S], test = used_ci_test)$p.value
-        }else{
-          parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], test = used_ci_test)$p.value
-        }
-        if(parent_pvalue < alpha){
-          Estimated_G[j, k] = 1
-        }
+  ####### Cook's
+  for(m in 2:p){
+    j = Ordering[m]
+    for(k in Ordering[1:(m-1)]){       
+      
+      if(method =='in.procedure') valid_idx = Reduce(intersect,valid_obs[m])
+      if(method =='post.procedure') valid_idx = Reduce(intersect,valid_obs[1:m])
+      
+      # valid_idx = Reduce(intersect,valid_obs[m])
+      
+      if(m > 2){
+        S = setdiff( Ordering[ 1:(m-1)], k )
+        parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], X[valid_idx, S], test = used_ci_test)$p.value
+      }else{
+        parent_pvalue = ci.test(X[valid_idx, j], X[valid_idx, k], test = used_ci_test)$p.value
       }
-    } 
-  } else {######## US
-    
-    for(m in 2:p){
-      j = Ordering[m]
-      for(k in Ordering[1:(m-1)]){
-        if(m > 2){
-          S = setdiff( Ordering[ 1:(m-1)], k )
-          parent_pvalue = ci.test(X[, j], X[, k], X[, S], test = used_ci_test)$p.value
-        }else{
-          parent_pvalue = ci.test(X[, j], X[, k], test = used_ci_test)$p.value
-        }
-        if(parent_pvalue < alpha){
-          Estimated_G[j, k] = 1
-        }
+      if(parent_pvalue < alpha){
+        Estimated_G[j, k] = 1
       }
     }
-    
-  }
+  } 
+  
   
   ####
   Runtime = proc.time()[3] - Runtime
