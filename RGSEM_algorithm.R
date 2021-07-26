@@ -18,7 +18,7 @@ GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", gr
   #### Step 1): Finding the Ordering ####
   
   
-  if(method == 'internal' | method == 'external')
+  if(method == 'in.procedure' | method == 'post.procedure')
   {
     if(direction == "forward"){
       result = Forward_Learning_fun_out(X, max_degree = max_degree,C, method = method)
@@ -44,13 +44,13 @@ GSEM_Algorithm = function(data, method, alpha = 0.001,  direction ="forward", gr
   #used_ci_test = "smc-mi-g"
   #used_ci_test = "cor"
   
-  if(method == "internal"| method == "external" ) { ####### Cook's
+  if(method == "in.procedure"| method == "post.procedure" ) { ####### Cook's
     for(m in 2:p){
       j = Ordering[m]
       for(k in Ordering[1:(m-1)]){       
         
-        if(method =='internal') valid_idx = Reduce(intersect,valid_obs[m])
-        if(method =='external') valid_idx = Reduce(intersect,valid_obs[1:m])
+        if(method =='in.procedure') valid_idx = Reduce(intersect,valid_obs[m])
+        if(method =='post.procedure') valid_idx = Reduce(intersect,valid_obs[1:m])
         
         if(m > 2){
           S = setdiff( Ordering[ 1:(m-1)], k )

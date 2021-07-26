@@ -1,6 +1,6 @@
 Forward_Learning_fun_out = function(X, max_degree = 1,C = NULL, method = 'in') {
-  if(method == 'in' | method =='post'){
-    cat('Only \'in\' and \'post\' are available as method.')
+  if(method == 'in.procedure' | method =='post.procedure'){
+    cat('Only \'in.procedure\' and \'post.procedure\' are available as method.')
     return(NULL)
   } 
   require(MASS)
@@ -49,7 +49,7 @@ score_valid_sample_fun = function(X, j , predictor,C, valid_set , method) {
   
   X_idx = 1:n
   out_obs = NULL
-  if(method == 'post') {
+  if(method == 'post.procedure') {
     X_idx = X_idx[valid_set] 
     out_obs = setdiff(1:n , valid_set)
   }
