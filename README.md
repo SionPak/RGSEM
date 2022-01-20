@@ -1,6 +1,6 @@
 This algorithm can learn Gaussian linear structural equation model with in-procedure and post-procedure outlier. 
 
-paper : https://www.springer.com/journal/42952 (Robust estimation of Gaussian linear structural equation models with equal error variances)
+paper : https://link.springer.com/article/10.1007/s42952-021-00160-2 (Robust estimation of Gaussian linear structural equation models with equal error variances)
 
 
 ## RGSEM_Algorithm
