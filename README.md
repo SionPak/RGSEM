@@ -5,8 +5,6 @@ This algorithm can learn Gaussian linear structural equation model with in-proce
 paper : https://link.springer.com/article/10.1007/s42952-021-00160-2 (Robust estimation of Gaussian linear structural equation models with equal error variances)
 
 
-\hline
-
 * data : n x p matrix or data.frame
 * method : 'in.procedure', 'post.procedure' / Outlier type in graphical model
 * alpha : a significant level for conditional independence tests
